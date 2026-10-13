@@ -1,5 +1,6 @@
 import { config } from './config.js';
 import { ServiceError } from './errors.js';
+import { characterName, stripAsteriskActions } from './text.js';
 
 const BASE_PROMPT = `You are a voice bot in a Discord server. Your answer will be read aloud by a text-to-speech voice.
 Answer conversationally in plain sentences: no markdown, bullet points, code blocks, emoji, URLs, or *asterisk actions*.
@@ -21,12 +22,6 @@ answer in first person as them, with their personality, catchphrases, speaking s
 If the name isn't a recognizable person or character, invent a personality that fits the name.
 This is an obvious comedy impression, so exaggerate freely, but still actually answer the question.`;
 
-/** Voice titles on Fish Audio often carry junk like "(Noise reduction)" or "[v2]"; strip it to get the character. */
-function characterName(voiceName) {
-  const cleaned = voiceName.replace(/[([{].*?[)\]}]/g, '').replace(/\s+/g, ' ').trim();
-  return cleaned || voiceName.trim();
-}
-
 function systemPrompt(voiceName) {
   const parts = [BASE_PROMPT];
   if (config.fishEmotions) parts.push(EMOTION_PROMPT);
@@ -36,25 +31,31 @@ function systemPrompt(voiceName) {
 
 /** Asks the model (via OpenRouter), in character as the chosen voice, and returns the plain-text answer. */
 export async function askAI(question, { voiceName } = {}) {
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.openRouterApiKey}`,
-      'Content-Type': 'application/json',
-      // Optional attribution headers OpenRouter shows on its dashboard.
-      'X-Title': 'BlazeAIVoiceBot',
-    },
-    body: JSON.stringify({
-      model: config.openRouterModel,
-      max_tokens: 1000,
-      // Short spoken answers don't need reasoning; turning it off keeps replies fast and cheap.
-      reasoning: { enabled: false },
-      messages: [
-        { role: 'system', content: systemPrompt(voiceName) },
-        { role: 'user', content: question },
-      ],
-    }),
-  });
+  let res;
+  try {
+    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.openRouterApiKey}`,
+        'Content-Type': 'application/json',
+        // Optional attribution headers OpenRouter shows on its dashboard.
+        'X-Title': 'BlazeAIVoiceBot',
+      },
+      body: JSON.stringify({
+        model: config.openRouterModel,
+        max_tokens: 1000,
+        // Short spoken answers don't need reasoning; turning it off keeps replies fast and cheap.
+        reasoning: { enabled: false },
+        messages: [
+          { role: 'system', content: systemPrompt(voiceName) },
+          { role: 'user', content: question },
+        ],
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch (err) {
+    throw ServiceError.fromFetchError('OpenRouter', err);
+  }
 
   const data = await res.json().catch(() => null);
   if (!res.ok || data?.error) {
@@ -64,5 +65,6 @@ export async function askAI(question, { voiceName } = {}) {
 
   const text = data?.choices?.[0]?.message?.content?.trim();
   if (!text) throw new Error(`OpenRouter returned no text (finish_reason: ${data?.choices?.[0]?.finish_reason})`);
-  return text;
+  // The prompt forbids *asterisk actions*, but models still slip them in and the voice would read them out.
+  return stripAsteriskActions(text) || text;
 }

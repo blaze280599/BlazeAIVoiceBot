@@ -1,19 +1,44 @@
 import { config } from './config.js';
 import { ServiceError } from './errors.js';
+import { extractVoiceId, toParenCues } from './text.js';
 
 const API = 'https://api.fish.audio';
-const CACHE_MS = 5 * 60 * 1000;
-// Matches a bare voice ID or one inside a link like https://fish.audio/app/m/<id>/
-const MODEL_ID_RE = /\b([0-9a-f]{32})\b/i;
+const SEARCH_CACHE_MS = 5 * 60 * 1000;
+const VOICE_CACHE_MS = 60 * 60 * 1000;
+// Every autocomplete keystroke is a new search, so cap the caches to keep memory flat on busy servers.
+const MAX_CACHE_ENTRIES = 500;
 
 const searchCache = new Map();
-const voiceById = new Map();
+const voiceCache = new Map();
 
-async function request(path, init = {}) {
-  const res = await fetch(`${API}${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${config.fishApiKey}`, ...init.headers },
-  });
+function cacheGet(cache, key, maxAgeMs) {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.at >= maxAgeMs) {
+    cache.delete(key);
+    return undefined;
+  }
+  return entry.value;
+}
+
+function cacheSet(cache, key, value) {
+  // Re-inserting moves the key to the end, so the first key is always the oldest.
+  cache.delete(key);
+  cache.set(key, { value, at: Date.now() });
+  if (cache.size > MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value);
+}
+
+async function request(path, { timeoutMs = 15_000, ...init } = {}) {
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${config.fishApiKey}`, ...init.headers },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    throw ServiceError.fromFetchError('Fish Audio', err);
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     let detail = body.slice(0, 300);
@@ -32,7 +57,7 @@ function toVoice(model) {
     author: model.author?.nickname ?? null,
     uses: model.task_count ?? 0,
   };
-  voiceById.set(voice.id, voice);
+  cacheSet(voiceCache, voice.id, voice);
   return voice;
 }
 
@@ -42,8 +67,8 @@ function toVoice(model) {
  */
 export async function searchVoices(query = '', { limit = 25, mine = false } = {}) {
   const key = `${mine}|${limit}|${query.trim().toLowerCase()}`;
-  const cached = searchCache.get(key);
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.voices;
+  const cached = cacheGet(searchCache, key, SEARCH_CACHE_MS);
+  if (cached) return cached;
 
   const params = new URLSearchParams({ page_size: String(limit), sort_by: 'task_count' });
   if (query.trim()) params.set('title', query.trim());
@@ -52,22 +77,20 @@ export async function searchVoices(query = '', { limit = 25, mine = false } = {}
   const res = await request(`/model?${params}`);
   const { items } = await res.json();
   const voices = items.filter((m) => m.type === 'tts' && m.state === 'trained').map(toVoice);
-  searchCache.set(key, { voices, at: Date.now() });
+  cacheSet(searchCache, key, voices);
   return voices;
 }
 
-/** Pulls the voice ID out of a pasted fish.audio link or bare ID, or returns null. */
-export function extractVoiceId(input) {
-  return input?.match(MODEL_ID_RE)?.[1]?.toLowerCase() ?? null;
-}
-
+/** Returns the voice, or null if no voice has that ID. Other failures (credits, API key, outages) are thrown. */
 export async function getVoice(id) {
-  if (voiceById.has(id)) return voiceById.get(id);
+  const cached = cacheGet(voiceCache, id, VOICE_CACHE_MS);
+  if (cached) return cached;
   try {
     const res = await request(`/model/${encodeURIComponent(id)}`);
     return toVoice(await res.json());
-  } catch {
-    return null;
+  } catch (err) {
+    if (err instanceof ServiceError && [400, 404, 422].includes(err.status)) return null;
+    throw err;
   }
 }
 
@@ -88,27 +111,14 @@ export async function resolveVoice(input, { fallbackId } = {}) {
   return best ?? null;
 }
 
-const CUE_RE = /\[[^\][\n]{1,40}\]/g;
-
-/** Removes [emotion] cues for showing the text in chat. */
-export function stripCues(text) {
-  return text.replace(CUE_RE, '').replace(/ {2,}/g, ' ').replace(/ +([,.!?])/g, '$1').replace(/^ +/gm, '').trim();
-}
-
-/** Tidies text for TTS: drops *asterisk actions* the voice would read out, and adapts cue syntax to the model. */
-function prepareForSpeech(text) {
-  let out = text.replace(/\*[^*\n]{1,60}\*/g, '').replace(/ {2,}/g, ' ').trim();
-  // The legacy S1 model uses (parentheses) instead of [brackets].
-  if (config.fishModel === 's1') out = out.replace(CUE_RE, (cue) => `(${cue.slice(1, -1)})`);
-  return out;
-}
-
 /** Returns MP3 audio as a Buffer. */
 export async function textToSpeech(text, voiceId) {
+  const speech = config.fishModel === 's1' ? toParenCues(text) : text;
   const res = await request('/v1/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', model: config.fishModel },
-    body: JSON.stringify({ text: prepareForSpeech(text), reference_id: voiceId, format: 'mp3', mp3_bitrate: 128 }),
+    body: JSON.stringify({ text: speech, reference_id: voiceId, format: 'mp3', mp3_bitrate: 128 }),
+    timeoutMs: 60_000,
   });
   return Buffer.from(await res.arrayBuffer());
 }

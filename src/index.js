@@ -1,12 +1,17 @@
 import { AttachmentBuilder, Client, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
 import { config } from './config.js';
 import { askAI } from './llm.js';
-import { extractVoiceId, getVoice, resolveVoice, searchVoices, stripCues, textToSpeech } from './fishaudio.js';
+import { getVoice, resolveVoice, searchVoices, textToSpeech } from './fishaudio.js';
+import { extractVoiceId, stripCues } from './text.js';
 import { clearUserVoice, getUserVoice, setUserVoice } from './userVoices.js';
 import { ServiceError, warnInTerminal } from './errors.js';
 import { leaveChannel, playInChannel } from './voice.js';
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
+  // User text and AI answers are echoed into chat, so never let them ping @everyone, roles or users.
+  allowedMentions: { parse: [] },
+});
 
 client.once(Events.ClientReady, (c) => console.log(`Logged in as ${c.user.tag}`));
 
@@ -57,7 +62,11 @@ async function handleVoiceAutocomplete(interaction) {
   // A pasted fish.audio link or ID: show that exact voice so the user can confirm it.
   const pastedId = extractVoiceId(typed);
   if (pastedId) {
-    const voice = await getVoice(pastedId);
+    const voice = await getVoice(pastedId).catch((err) => {
+      console.error('Voice lookup failed:', err.message);
+      return undefined;
+    });
+    if (voice === undefined) return interaction.respond([]);
     return interaction.respond(
       voice
         ? [{ name: `🔗 ${describeVoice(voice)}`.slice(0, 100), value: voice.id }]
@@ -77,7 +86,29 @@ async function handleVoiceAutocomplete(interaction) {
   await interaction.respond(voices.slice(0, 25).map((v) => ({ name: describeVoice(v).slice(0, 100), value: v.id })));
 }
 
+// When each user last ran /ask or /say, so one person can't burn through the API credits.
+const lastSpoke = new Map();
+
+/** Returns the seconds left on the user's cooldown, or 0 (and starts a new cooldown) if they can go. */
+function cooldownLeft(userId) {
+  const now = Date.now();
+  const cooldownMs = config.cooldownSeconds * 1000;
+  const waitMs = (lastSpoke.get(userId) ?? 0) + cooldownMs - now;
+  if (waitMs > 0) return Math.ceil(waitMs / 1000);
+  lastSpoke.set(userId, now);
+  // Forget expired entries now and then so the map doesn't grow forever.
+  if (lastSpoke.size > 1000) {
+    for (const [id, at] of lastSpoke) if (now - at >= cooldownMs) lastSpoke.delete(id);
+  }
+  return 0;
+}
+
 async function handleSpeak(interaction, { useAI }) {
+  const wait = cooldownLeft(interaction.user.id);
+  if (wait) {
+    return interaction.reply({ content: `⏳ Slow down! Try again in ${wait}s.`, flags: MessageFlags.Ephemeral });
+  }
+
   const input = interaction.options.getString(useAI ? 'question' : 'text', true);
   const voiceInput = interaction.options.getString('voice');
   const speakOption = interaction.options.getBoolean('speak');

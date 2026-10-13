@@ -13,6 +13,8 @@ A Discord bot that answers questions with DeepSeek V4.1 Flash (via OpenRouter) a
 | `/voices [search] [mine]` | Searches Fish Audio voices and shows their IDs. `mine:true` shows only voices you created. |
 | `/leave` | Makes the bot leave the voice channel. It also leaves on its own after 15 minutes of silence. |
 
+Each user can run `/ask` or `/say` once every 10 seconds, so nobody burns through your API credits. Change it with `COOLDOWN_SECONDS` in `.env` (`0` turns it off).
+
 `voice` searches Fish Audio's public library as you type, with the most-used voices first. You can also paste a fish.audio voice link (like `https://fish.audio/app/m/<id>/`) or a bare ID. `speak:false` skips the voice channel and posts the MP3 instead.
 
 Which voice gets used: the `voice` option in the command, then your `/voices use:` choice, then `FISH_AUDIO_DEFAULT_VOICE_ID`. Fish Audio's API can't list your liked or bookmarked voices, so copy the link from the voice's page instead. Saved choices are stored in `data/user-voices.json`.

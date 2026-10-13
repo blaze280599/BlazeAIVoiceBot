@@ -23,4 +23,7 @@ export const config = {
 
   openRouterApiKey: required('OPENROUTER_API_KEY'),
   openRouterModel: process.env.OPENROUTER_MODEL?.trim() || 'deepseek/deepseek-v4.1-flash',
+
+  // How long each user waits between /ask or /say commands. 0 turns the cooldown off.
+  cooldownSeconds: Math.max(0, Number(process.env.COOLDOWN_SECONDS?.trim() || 10) || 0),
 };

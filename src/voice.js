@@ -26,18 +26,45 @@ function getPlayer(guildId) {
   return player;
 }
 
+function forgetGuild(guildId) {
+  clearTimeout(idleTimers.get(guildId));
+  idleTimers.delete(guildId);
+  players.get(guildId)?.stop();
+  players.delete(guildId);
+}
+
 async function connect(channel) {
-  let connection = getVoiceConnection(channel.guild.id);
+  const guildId = channel.guild.id;
+  let connection = getVoiceConnection(guildId);
   if (!connection || connection.joinConfig.channelId !== channel.id) {
+    const isNew = !connection;
     connection = joinVoiceChannel({
       channelId: channel.id,
-      guildId: channel.guild.id,
+      guildId,
       adapterCreator: channel.guild.voiceAdapterCreator,
       selfDeaf: true,
     });
+    if (isNew) watchConnection(connection, guildId);
   }
   await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
   return connection;
+}
+
+/** Cleans up when the bot is kicked or the connection drops, so the next request rejoins from scratch. */
+function watchConnection(connection, guildId) {
+  connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    try {
+      // Moving to another channel or a brief network blip reconnects on its own within a few seconds.
+      await Promise.race([
+        entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+        entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+      ]);
+    } catch {
+      // Kicked or the channel was deleted: give up on this connection.
+      if (connection.state.status !== VoiceConnectionStatus.Destroyed) connection.destroy();
+    }
+  });
+  connection.on(VoiceConnectionStatus.Destroyed, () => forgetGuild(guildId));
 }
 
 function scheduleDisconnect(guildId) {
@@ -46,8 +73,7 @@ function scheduleDisconnect(guildId) {
     guildId,
     setTimeout(() => {
       getVoiceConnection(guildId)?.destroy();
-      players.delete(guildId);
-      idleTimers.delete(guildId);
+      forgetGuild(guildId);
     }, IDLE_DISCONNECT_MS),
   );
 }
@@ -56,16 +82,19 @@ async function play(channel, mp3) {
   const guildId = channel.guild.id;
   clearTimeout(idleTimers.get(guildId));
 
-  const connection = await connect(channel);
-  const player = getPlayer(guildId);
-  connection.subscribe(player);
+  try {
+    const connection = await connect(channel);
+    const player = getPlayer(guildId);
+    connection.subscribe(player);
 
-  // createAudioResource transcodes the MP3 through ffmpeg (must be on PATH).
-  player.play(createAudioResource(Readable.from(mp3)));
-  await entersState(player, AudioPlayerStatus.Playing, 10_000);
-  await entersState(player, AudioPlayerStatus.Idle, 10 * 60_000);
-
-  scheduleDisconnect(guildId);
+    // createAudioResource transcodes the MP3 through ffmpeg (must be on PATH).
+    player.play(createAudioResource(Readable.from(mp3)));
+    await entersState(player, AudioPlayerStatus.Playing, 10_000);
+    await entersState(player, AudioPlayerStatus.Idle, 10 * 60_000);
+  } finally {
+    // Even after a failed playback, make sure the bot doesn't sit in the channel forever.
+    if (getVoiceConnection(guildId)) scheduleDisconnect(guildId);
+  }
 }
 
 /** Joins the channel (if needed) and plays the MP3 buffer after anything already queued. */
@@ -81,11 +110,9 @@ export function playInChannel(channel, mp3) {
 }
 
 export function leaveChannel(guildId) {
-  clearTimeout(idleTimers.get(guildId));
-  idleTimers.delete(guildId);
-  players.get(guildId)?.stop();
-  players.delete(guildId);
   const connection = getVoiceConnection(guildId);
+  // destroy() fires the Destroyed handler, which also cleans up the player and idle timer.
   connection?.destroy();
+  forgetGuild(guildId);
   return Boolean(connection);
 }

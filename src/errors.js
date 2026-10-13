@@ -3,13 +3,26 @@ const SERVICES = {
   OpenRouter: { billing: 'https://openrouter.ai/settings/credits', keys: 'https://openrouter.ai/settings/keys' },
 };
 
+function kindFor(status) {
+  if (status === 402) return 'credits';
+  if (status === 401 || status === 403) return 'auth';
+  if (status === 429) return 'rate';
+  return 'other';
+}
+
 /** An error from Fish Audio or OpenRouter that we can explain to the user in plain words. */
 export class ServiceError extends Error {
-  constructor(service, status, detail) {
+  constructor(service, status, detail, kind = kindFor(status)) {
     super(`${service} ${status}: ${detail}`);
     this.service = service;
     this.status = status;
-    this.kind = status === 402 ? 'credits' : status === 401 || status === 403 ? 'auth' : status === 429 ? 'rate' : 'other';
+    this.kind = kind;
+  }
+
+  /** Builds the error for a request that failed before getting a response (timeout, network down). */
+  static fromFetchError(service, err) {
+    if (err.name === 'TimeoutError') return new ServiceError(service, 'timeout', 'no response in time', 'timeout');
+    return new ServiceError(service, 'network', err.cause?.message ?? err.message);
   }
 
   /** Message shown in Discord. */
@@ -22,6 +35,8 @@ export class ServiceError extends Error {
         return `⚠️ **${this.service} rejected the bot's API key.** Check the key in \`.env\` (${links.keys}).`;
       case 'rate':
         return `⏳ **${this.service} is rate limiting the bot.** Wait a moment and try again.`;
+      case 'timeout':
+        return `⏳ **${this.service} took too long to respond.** Try again in a moment.`;
       default:
         return `Something went wrong with ${this.service}: ${this.message}`;
     }
