@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { characterName, extractVoiceId, stripAsteriskActions, stripCues, toParenCues } from '../src/text.js';
+import { characterName, extractVoiceId, speakableName, stripAsteriskActions, stripCues, toParenCues } from '../src/text.js';
 
 const ID = '0123456789abcdef0123456789abcdef';
 
@@ -29,4 +29,15 @@ test('toParenCues converts cue syntax for the S1 model', () => {
 test('characterName strips junk from voice titles', () => {
   assert.equal(characterName('Donald Trump (Noise reduction) [v2]'), 'Donald Trump');
   assert.equal(characterName('(only junk)'), '(only junk)');
+});
+
+test('speakableName cleans display names for TTS', () => {
+  assert.equal(speakableName('🔥 Blaze 🔥'), 'Blaze');
+  assert.equal(speakableName('xX_Sniper_Xx'), 'xX Sniper Xx');
+  assert.equal(speakableName('𝓑𝓵𝓪𝔃𝓮'), 'Blaze');
+  assert.equal(speakableName("O'Brien"), "O'Brien");
+  assert.equal(speakableName('🔥🔥'), null);
+  assert.equal(speakableName('[$(100)$]'), null); // No letters: the caller falls back to the username.
+  assert.equal(speakableName('Ƶack'), 'Ƶack');
+  assert.equal(speakableName(null), null);
 });

@@ -19,6 +19,12 @@ Each user can run `/ask` or `/say` once every 10 seconds, so nobody burns throug
 
 Which voice gets used: the `voice` option in the command, then your `/voices use:` choice, then `FISH_AUDIO_DEFAULT_VOICE_ID`. Fish Audio's API can't list your liked or bookmarked voices, so copy the link from the voice's page instead. Saved choices are stored in `data/user-voices.json`.
 
+## Join greetings
+
+When someone joins a voice channel, the bot greets them out loud by name in Trump's voice, with a fresh AI-written line each time. It uses their server nickname, then their display name, then their username. Emoji and symbols are removed first, and a nickname with no letters (like `[$(100)$]`) falls back to the username.
+
+The bot goes to whoever joined: it joins their channel, or moves over from another channel once anything it's saying there has finished. Each person is greeted at most once every 10 minutes. Change that with `GREET_COOLDOWN_MINUTES`, change the voice with `GREET_VOICE` (a name, fish.audio link or ID), or turn greetings off with `GREETINGS=false`.
+
 ## Emotions
 
 Answers are performed with Fish Audio emotion cues: the AI adds a few tags like `[excited]`, `[sarcastic]`, `[laughing]`, `[whispering]` or `[shouting]`, and the voice acts them out. The tags are removed from any text shown in chat. You can use them yourself in `/say`, e.g. `/say text: [whispering] I have a secret. [laughing] Ha ha!`. Set `FISH_AUDIO_EMOTIONS=false` in `.env` for plain delivery. See [Fish Audio's emotion guide](https://docs.fish.audio/developer-guide/core-features/emotions) for the full list.

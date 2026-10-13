@@ -30,3 +30,16 @@ export function characterName(voiceName) {
   const cleaned = voiceName.replace(/[([{].*?[)\]}]/g, '').replace(/\s+/g, ' ').trim();
   return cleaned || voiceName.trim();
 }
+
+/**
+ * Makes a Discord display name sayable: drops emoji, symbols and decoration like "xX_Name_Xx" underscores.
+ * Returns null when nothing pronounceable is left, so callers can fall back to the username.
+ */
+export function speakableName(name) {
+  const cleaned = (name ?? '')
+    .normalize('NFKC') // Turns fancy-font letters like 𝓑𝓵𝓪𝔃𝓮 into plain ones.
+    .replace(/[^\p{L}\p{N}' -]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return /\p{L}/u.test(cleaned) ? cleaned : null;
+}

@@ -6,6 +6,7 @@ import { extractVoiceId, stripCues } from './text.js';
 import { clearUserVoice, getUserVoice, setUserVoice } from './userVoices.js';
 import { ServiceError, warnInTerminal } from './errors.js';
 import { leaveChannel, playInChannel } from './voice.js';
+import { greetOnJoin } from './greetings.js';
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
@@ -14,6 +15,8 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, (c) => console.log(`Logged in as ${c.user.tag}`));
+
+client.on(Events.VoiceStateUpdate, greetOnJoin);
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {

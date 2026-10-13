@@ -26,4 +26,11 @@ export const config = {
 
   // How long each user waits between /ask or /say commands. 0 turns the cooldown off.
   cooldownSeconds: Math.max(0, Number(process.env.COOLDOWN_SECONDS?.trim() || 10) || 0),
+
+  // Greet people by name when they join a voice channel. Set GREETINGS=false to turn it off.
+  greetings: process.env.GREETINGS?.trim().toLowerCase() !== 'false',
+  // Voice that does the greeting: a name to search for, a fish.audio link, or a voice ID.
+  greetVoice: process.env.GREET_VOICE?.trim() || 'Donald Trump',
+  // Minutes before the same person gets greeted again, so rejoining doesn't spam (or burn credits).
+  greetCooldownMinutes: Math.max(0, Number(process.env.GREET_COOLDOWN_MINUTES?.trim() || 10) || 0),
 };
