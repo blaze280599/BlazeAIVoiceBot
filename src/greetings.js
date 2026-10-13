@@ -39,7 +39,8 @@ export async function greetOnJoin(oldState, newState) {
     const voice = await resolveVoice(config.greetVoice);
     if (!voice) return console.error(`[greet] No Fish Audio voice found for GREET_VOICE="${config.greetVoice}"`);
     const greeting = await askAI(
-      `"${name}" just joined the voice channel. Greet them by that name, warmly and in character, in one or two short sentences.`,
+      `"${name}" just joined the voice channel. Greet them by that name with a sarcastic, backhanded welcome, in character. ` +
+        'One short sentence, under 20 words. Playful ribbing between friends, not genuinely mean.',
       { voiceName: voice.name },
     );
     const mp3 = await textToSpeech(greeting, voice.id);
