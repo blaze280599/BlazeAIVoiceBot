@@ -23,6 +23,8 @@ Which voice gets used: the `voice` option in the command, then your `/voices use
 
 When someone joins a voice channel, the bot greets them out loud by name in Trump's voice, with a short, sarcastic AI-written line that changes every time. It uses their server nickname, then their display name, then their username. Emoji and symbols are removed first, and a nickname with no letters (like `[$(100)$]`) falls back to the username.
 
+Some friends get a greeting tailored to them: `friendBits` in `src/greetings.js` maps a Discord username to what they're into, and the line ribs them about it. Add or edit entries there.
+
 The bot goes to whoever joined: it joins their channel, or moves over from another channel once anything it's saying there has finished. Each person is greeted at most once every 10 minutes. Change that with `GREET_COOLDOWN_MINUTES`, change the voice with `GREET_VOICE` (a name, fish.audio link or ID), or turn greetings off with `GREETINGS=false`.
 
 ## Emotions

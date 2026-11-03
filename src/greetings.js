@@ -8,6 +8,14 @@ import { playInChannel } from './voice.js';
 // When each member was last greeted, so hopping in and out (or a flaky connection) doesn't spam greetings.
 const lastGreeted = new Map();
 
+// What the bot knows about each friend (keyed by Discord username), so their greeting can rib them about it.
+const friendBits = {
+  gamebredray: 'is obsessed with K-pop and anything from Asia: idols, anime, boba, K-dramas',
+  stickygravy: 'is still hooked on MapleStory and eats leftover rice every single day',
+  pparkerr: 'loves Teslas, makes constant impulse purchases, and is a huge Sabrina Carpenter fan',
+  jig4352: "is a proper Brexit geezer: Union Jack, pints down the pub, moaning about Brussels. Mock the Brexit bloke act, but don't make racist jokes",
+};
+
 /** What to call the member out loud: server nickname, then display name, then username. */
 function nameFor(member) {
   return speakableName(member.nickname) ?? speakableName(member.user.globalName) ?? speakableName(member.user.username) ?? 'my friend';
@@ -35,11 +43,13 @@ export async function greetOnJoin(oldState, newState) {
   if (onCooldown(member)) return;
 
   const name = nameFor(member);
+  const bit = friendBits[member.user.username.toLowerCase()];
   try {
     const voice = await resolveVoice(config.greetVoice);
     if (!voice) return console.error(`[greet] No Fish Audio voice found for GREET_VOICE="${config.greetVoice}"`);
     const greeting = await askAI(
       `"${name}" just joined the voice channel. Greet them by that name with a sarcastic, backhanded welcome, in character. ` +
+        (bit ? `They ${bit}; work that into the dig. ` : '') +
         'One short sentence, under 20 words. Playful ribbing between friends, not genuinely mean.',
       { voiceName: voice.name },
     );
