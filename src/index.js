@@ -6,14 +6,16 @@ import { extractVoiceId, stripCues } from './text.js';
 import { clearUserVoice, getUserVoice, setUserVoice } from './userVoices.js';
 import { ServiceError, warnInTerminal } from './errors.js';
 import { leaveChannel, playInChannel } from './voice.js';
-import { greetOnJoin, roastOnLeave } from './greetings.js';
+import { greetOnJoin, reactToVoiceChange, roastOnLeave } from './greetings.js';
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
     // Lets greetings see what people are playing or listening to. Needs Presence Intent on in the Developer Portal.
-    ...((config.greetings || config.leaveRoastChance > 0) && config.greetActivityChance > 0 ? [GatewayIntentBits.GuildPresences] : []),
+    ...((config.greetings || config.leaveRoastChance > 0 || config.voiceReactChance > 0) && config.greetActivityChance > 0
+      ? [GatewayIntentBits.GuildPresences]
+      : []),
   ],
   // User text and AI answers are echoed into chat, so never let them ping @everyone, roles or users.
   allowedMentions: { parse: [] },
@@ -23,6 +25,7 @@ client.once(Events.ClientReady, (c) => console.log(`Logged in as ${c.user.tag}`)
 
 client.on(Events.VoiceStateUpdate, greetOnJoin);
 client.on(Events.VoiceStateUpdate, roastOnLeave);
+client.on(Events.VoiceStateUpdate, reactToVoiceChange);
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {

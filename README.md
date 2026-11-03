@@ -35,6 +35,10 @@ The bot goes to whoever joined: it joins their channel, or moves over from anoth
 
 When someone disconnects from voice, there's a 50% chance the bot roasts them to whoever's still in the channel ("rage quitting already?"), using the same friend bits and activity as greetings. It only happens if someone's left to hear it, moving to another channel doesn't count (they get greeted there instead), and each person is roasted at most once per `GREET_COOLDOWN_MINUTES`. Change the odds with `LEAVE_ROAST_CHANCE` (a percent, `0` turns it off).
 
+### Voice reactions
+
+When someone in voice deafens, mutes, starts screen sharing or turns their camera on, there's a 50% chance the bot reacts ("deafened? can't handle the truth?"). Screen sharing roasts the game they're playing, if their status shows one. Only switching something on counts, not switching it off, and nothing is said if nobody in the channel can hear it. Each person gets at most one reaction per `GREET_COOLDOWN_MINUTES`, and none in the minute after they're greeted, since people often mute or turn on their camera right after joining. Change the odds with `VOICE_REACT_CHANCE` (a percent, `0` turns it off).
+
 ### Running gags
 
 The bot counts how many times each person joins and leaves voice each day. From someone's second join (or second leave) onward, the greeting or roast works the tally in ("that's your fourth rejoin, is your Wi-Fi powered by a hamster?"). Joins and leaves are counted even when the greeting is skipped for the cooldown, but moving between channels doesn't count as a join. The tally resets at midnight (the bot machine's time) and when the bot restarts.

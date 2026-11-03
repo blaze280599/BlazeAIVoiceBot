@@ -8,6 +8,7 @@ import { playInChannel } from './voice.js';
 // When each member was last greeted or roasted on the way out, so hopping in and out (or a flaky connection) doesn't spam.
 const lastGreeted = new Map();
 const lastRoasted = new Map();
+const lastReacted = new Map();
 // How many times each member joined and left voice today, so the bot can make a running gag of people who keep popping in and out.
 const dailyCounts = new Map();
 
@@ -87,6 +88,19 @@ function groupMaterial(channel, member) {
   return `Already in the channel: ${who}. Play the newcomer off one of them by name, like the two are about to clash or team up. `;
 }
 
+/** People in the channel who can actually hear the bot (not deafened). */
+function hearers(channel) {
+  return listeners(channel).filter((m) => !m.voice.deaf);
+}
+
+// Voice toggles worth a reaction, checked in order: deafening also mutes, so it has to come before mute.
+const voiceChanges = [
+  { on: (s) => s.selfDeaf, what: "just deafened themselves, so they can't hear a thing. Roast them to everyone else for tuning the group out" },
+  { on: (s) => s.streaming, what: 'just started screen sharing to the channel. Mock everyone now being forced to watch', showsActivity: true },
+  { on: (s) => s.selfVideo, what: 'just turned their camera on. Rib them about everyone now having to look at them' },
+  { on: (s) => s.selfMute, what: 'just muted their mic. Roast them for going quiet, like they have something to hide' },
+];
+
 /** Writes a line with the AI and says it in the greeting voice, unless shouldPlay() says it's no longer wanted. */
 async function speakInChannel(channel, prompt, shouldPlay) {
   const voice = await resolveVoice(config.greetVoice);
@@ -154,6 +168,36 @@ export async function roastOnLeave(oldState, newState) {
     );
   } catch (err) {
     console.error(`[greet] Couldn't roast ${member.user.tag} for leaving:`, err.message);
+    warnInTerminal(err);
+  }
+}
+
+/** Handles Events.VoiceStateUpdate: sometimes reacts when someone deafens, mutes, goes live or turns their camera on. */
+export async function reactToVoiceChange(oldState, newState) {
+  const channel = newState.channel;
+  const member = newState.member;
+  // Only changes within a channel: joins and leaves are handled above.
+  if (!channel || oldState.channelId !== newState.channelId || !member || member.user.bot) return;
+  const change = voiceChanges.find((c) => !c.on(oldState) && c.on(newState));
+  if (!change) return;
+  if (channel.id === channel.guild.afkChannelId || !channel.joinable || !hearers(channel).size) return;
+  // Joining often comes with a mute or camera toggle; don't pile a reaction on top of the greeting.
+  if (Date.now() - (lastGreeted.get(`${member.guild.id}:${member.id}`) ?? 0) < 60_000) return;
+  if (Math.random() * 100 >= config.voiceReactChance) return;
+  if (onCooldown(member, lastReacted)) return;
+
+  // Going live is funnier when the bot knows what they're showing.
+  const activity = change.showsActivity && describeActivity(member.presence?.activities);
+  try {
+    await speakInChannel(
+      channel,
+      `"${nameFor(member)}" ${change.what}, by name, in character. ` +
+        (activity ? `They're ${activity}, so that's what everyone's watching. ` : roastMaterial(member)),
+      // They may have left, or everyone else deafened, while the line was being made.
+      () => member.voice.channelId === channel.id && hearers(channel).size > 0,
+    );
+  } catch (err) {
+    console.error(`[greet] Couldn't react to ${member.user.tag}'s voice change:`, err.message);
     warnInTerminal(err);
   }
 }

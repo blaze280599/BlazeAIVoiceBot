@@ -37,6 +37,8 @@ export const config = {
   greetGroupChance: Math.min(100, Math.max(0, Number(process.env.GREET_GROUP_CHANCE?.trim() || 50) || 0)),
   // Percent chance someone gets roasted to the rest of the channel when they disconnect. 0 turns it off.
   leaveRoastChance: Math.min(100, Math.max(0, Number(process.env.LEAVE_ROAST_CHANCE?.trim() || 50) || 0)),
+  // Percent chance the bot reacts when someone deafens, mutes, starts screen sharing or turns their camera on. 0 turns it off.
+  voiceReactChance: Math.min(100, Math.max(0, Number(process.env.VOICE_REACT_CHANCE?.trim() || 50) || 0)),
   // Percent chance a greeting roasts what they're playing or listening to (from their Discord status). 0 turns it off.
   greetActivityChance: Math.min(100, Math.max(0, Number(process.env.GREET_ACTIVITY_CHANCE?.trim() || 50) || 0)),
 };
