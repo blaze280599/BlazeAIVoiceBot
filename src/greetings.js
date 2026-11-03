@@ -19,7 +19,9 @@ const friendBits = {
   stickygravy: 'is still hooked on Arena Breakout Infinite and eats leftover rice every single day',
   pparkerr: 'loves Teslas, makes constant impulse purchases, and is a huge Sabrina Carpenter fan',
   jig4352: "is a proper Brexit geezer: Union Jack, pints down the pub, moaning about Brussels. Mock the Brexit bloke act, but don't make racist jokes",
-  zack280599: 'built this very bot, spends their free time coding AI to roast their friends instead of touching grass, and is now getting roasted by their own creation',
+  zack280599:
+    'built this very bot and is now getting roasted by their own creation, lives in World of Warcraft, ' +
+    'and is always craving a cheesy curry from CoCo Curry House',
 };
 
 /** What to call the member out loud: server nickname, then display name, then username. */
