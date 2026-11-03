@@ -35,6 +35,10 @@ The bot goes to whoever joined: it joins their channel, or moves over from anoth
 
 When someone disconnects from voice, there's a 50% chance the bot roasts them to whoever's still in the channel ("rage quitting already?"), using the same friend bits and activity as greetings. It only happens if someone's left to hear it, moving to another channel doesn't count (they get greeted there instead), and each person is roasted at most once per `GREET_COOLDOWN_MINUTES`. Change the odds with `LEAVE_ROAST_CHANCE` (a percent, `0` turns it off).
 
+### Running gags
+
+The bot counts how many times each person joins and leaves voice each day. From someone's second join (or second leave) onward, the greeting or roast works the tally in ("that's your fourth rejoin, is your Wi-Fi powered by a hamster?"). Joins and leaves are counted even when the greeting is skipped for the cooldown, but moving between channels doesn't count as a join. The tally resets at midnight (the bot machine's time) and when the bot restarts.
+
 ## Emotions
 
 Answers are performed with Fish Audio emotion cues: the AI adds a few tags like `[excited]`, `[sarcastic]`, `[laughing]`, `[whispering]` or `[shouting]`, and the voice acts them out. The tags are removed from any text shown in chat. You can use them yourself in `/say`, e.g. `/say text: [whispering] I have a secret. [laughing] Ha ha!`. Set `FISH_AUDIO_EMOTIONS=false` in `.env` for plain delivery. See [Fish Audio's emotion guide](https://docs.fish.audio/developer-guide/core-features/emotions) for the full list.

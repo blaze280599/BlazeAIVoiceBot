@@ -8,11 +8,13 @@ import { playInChannel } from './voice.js';
 // When each member was last greeted or roasted on the way out, so hopping in and out (or a flaky connection) doesn't spam.
 const lastGreeted = new Map();
 const lastRoasted = new Map();
+// How many times each member joined and left voice today, so the bot can make a running gag of people who keep popping in and out.
+const dailyCounts = new Map();
 
 // What the bot knows about each friend (keyed by Discord username), so their greeting can rib them about it.
 const friendBits = {
   gamebredray: 'is obsessed with K-pop and anything from Asia: idols, anime, boba, K-dramas',
-  stickygravy: 'is still hooked on MapleStory and eats leftover rice every single day',
+  stickygravy: 'is still hooked on Arena Breakout Infinite and eats leftover rice every single day',
   pparkerr: 'loves Teslas, makes constant impulse purchases, and is a huge Sabrina Carpenter fan',
   jig4352: "is a proper Brexit geezer: Union Jack, pints down the pub, moaning about Brussels. Mock the Brexit bloke act, but don't make racist jokes",
 };
@@ -32,6 +34,30 @@ function onCooldown(member, lastAt) {
     for (const [k, at] of lastAt) if (now - at >= cooldownMs) lastAt.delete(k);
   }
   return false;
+}
+
+/** The member's { joins, leaves } for today (the bot's local date), starting from zero each day. */
+function todaysCounts(member) {
+  const key = `${member.guild.id}:${member.id}`;
+  const today = new Date().toDateString();
+  let counts = dailyCounts.get(key);
+  if (counts?.day !== today) {
+    counts = { day: today, joins: 0, leaves: 0 };
+    dailyCounts.set(key, counts);
+    if (dailyCounts.size > 1000) {
+      for (const [k, c] of dailyCounts) if (c.day !== today) dailyCounts.delete(k);
+    }
+  }
+  return counts;
+}
+
+/** Once someone has joined or left more than once today, tells the AI the tally so it can turn it into a running gag. */
+function countsMaterial({ joins, leaves }, event) {
+  if ((event === 'join' ? joins : leaves) < 2) return '';
+  return (
+    `Today they've joined voice ${joins} ${joins === 1 ? 'time' : 'times'} and left ${leaves} ${leaves === 1 ? 'time' : 'times'}. ` +
+    `Make a running gag of how often they keep ${event === 'join' ? 'coming back' : 'bailing'}, using the number. `
+  );
 }
 
 /** Roast material for the prompt: sometimes what they're doing right now, otherwise their friend bit. */
@@ -78,8 +104,13 @@ async function speakInChannel(channel, prompt, shouldPlay) {
 export async function greetOnJoin(oldState, newState) {
   const channel = newState.channel;
   const member = newState.member;
-  if (!config.greetings || !channel || !member || member.user.bot) return;
+  if (!channel || !member || member.user.bot) return;
   if (oldState.channelId === newState.channelId) return; // Mute, deafen, stream etc., not a join.
+  // Counted even when the greeting is skipped (cooldown, greetings off), so the tally stays accurate.
+  // Moving between channels isn't a fresh join.
+  const counts = todaysCounts(member);
+  if (!oldState.channelId) counts.joins++;
+  if (!config.greetings) return;
   if (channel.id === channel.guild.afkChannelId || !channel.joinable) return;
   if (onCooldown(member, lastGreeted)) return;
 
@@ -88,7 +119,8 @@ export async function greetOnJoin(oldState, newState) {
       channel,
       `"${nameFor(member)}" just joined the voice channel. Greet them by that name with a sarcastic, backhanded welcome, in character. ` +
         roastMaterial(member) +
-        groupMaterial(channel, member),
+        groupMaterial(channel, member) +
+        countsMaterial(counts, 'join'),
       // They may have left while the greeting was being made.
       () => member.voice.channelId === channel.id,
     );
@@ -104,6 +136,8 @@ export async function roastOnLeave(oldState, newState) {
   const member = oldState.member;
   // Only full disconnects: moving to another channel gets a greeting over there instead.
   if (!channel || newState.channelId || !member || member.user.bot) return;
+  const counts = todaysCounts(member);
+  counts.leaves++;
   if (channel.id === channel.guild.afkChannelId || !channel.joinable || !listeners(channel).size) return;
   if (Math.random() * 100 >= config.leaveRoastChance) return;
   if (onCooldown(member, lastRoasted)) return;
@@ -113,7 +147,8 @@ export async function roastOnLeave(oldState, newState) {
       channel,
       `"${nameFor(member)}" just left the voice channel. Roast them by name to the people still there, in character, ` +
         'like they rage quit or bailed on everyone. ' +
-        roastMaterial(member),
+        roastMaterial(member) +
+        countsMaterial(counts, 'leave'),
       // Nobody left to hear it.
       () => listeners(channel).size > 0,
     );
