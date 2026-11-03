@@ -5,7 +5,7 @@ import { getVoice, resolveVoice, searchVoices, textToSpeech } from './fishaudio.
 import { extractVoiceId, stripCues } from './text.js';
 import { clearUserVoice, getUserVoice, setUserVoice } from './userVoices.js';
 import { ServiceError, warnInTerminal } from './errors.js';
-import { leaveChannel, playInChannel } from './voice.js';
+import { leaveChannel, leaveWhenEmpty, playInChannel } from './voice.js';
 import { greetOnJoin, reactToVoiceChange, roastOnLeave } from './greetings.js';
 import { dossier, setTracking, trackEveryone, trackPresence } from './profiles.js';
 
@@ -31,6 +31,7 @@ client.once(Events.ClientReady, (c) => {
 client.on(Events.VoiceStateUpdate, greetOnJoin);
 client.on(Events.VoiceStateUpdate, roastOnLeave);
 client.on(Events.VoiceStateUpdate, reactToVoiceChange);
+client.on(Events.VoiceStateUpdate, leaveWhenEmpty);
 if (config.learning) client.on(Events.PresenceUpdate, trackPresence);
 
 client.on(Events.InteractionCreate, async (interaction) => {

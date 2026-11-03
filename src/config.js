@@ -27,6 +27,9 @@ export const config = {
   // How long each user waits between /ask or /say commands. 0 turns the cooldown off.
   cooldownSeconds: Math.max(0, Number(process.env.COOLDOWN_SECONDS?.trim() || 10) || 0),
 
+  // Stay in voice until everyone has left. Set STAY_IN_VOICE=false to leave after 15 minutes without speaking instead.
+  stayInVoice: process.env.STAY_IN_VOICE?.trim().toLowerCase() !== 'false',
+
   // Greet people by name when they join a voice channel. Set GREETINGS=false to turn it off.
   greetings: process.env.GREETINGS?.trim().toLowerCase() !== 'false',
   // Voice that does the greeting: a name to search for, a fish.audio link, or a voice ID.

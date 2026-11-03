@@ -8,7 +8,9 @@ import {
   getVoiceConnection,
   joinVoiceChannel,
 } from '@discordjs/voice';
+import { config } from './config.js';
 
+// With STAY_IN_VOICE=false, the bot leaves after this long without speaking.
 const IDLE_DISCONNECT_MS = 15 * 60 * 1000;
 
 // One player and one playback queue per guild so answers don't talk over each other.
@@ -93,8 +95,24 @@ async function play(channel, mp3) {
     await entersState(player, AudioPlayerStatus.Idle, 10 * 60_000);
   } finally {
     // Even after a failed playback, make sure the bot doesn't sit in the channel forever.
-    if (getVoiceConnection(guildId)) scheduleDisconnect(guildId);
+    const connection = getVoiceConnection(guildId);
+    if (connection && !config.stayInVoice) scheduleDisconnect(guildId);
+    // Everyone may have left while it was talking.
+    else if (connection && !hasPeople(channel.guild, connection.joinConfig.channelId)) leaveChannel(guildId);
   }
+}
+
+/** Whether anyone other than bots is in the voice channel. */
+function hasPeople(guild, channelId) {
+  return guild.channels.cache.get(channelId)?.members.some((m) => !m.user.bot) ?? false;
+}
+
+/** Handles Events.VoiceStateUpdate: with STAY_IN_VOICE on, leaves once the last person has left the bot's channel. */
+export function leaveWhenEmpty(oldState, newState) {
+  if (!config.stayInVoice || oldState.channelId === newState.channelId) return;
+  const channelId = getVoiceConnection(oldState.guild.id)?.joinConfig.channelId;
+  if (oldState.channelId !== channelId || hasPeople(oldState.guild, channelId)) return;
+  leaveChannel(oldState.guild.id);
 }
 
 /** Joins the channel (if needed) and plays the MP3 buffer after anything already queued. */

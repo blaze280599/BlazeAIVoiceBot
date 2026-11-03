@@ -12,7 +12,7 @@ A Discord bot that answers questions with DeepSeek V4.1 Flash (via OpenRouter) a
 | `/voices reset:true` | Clears your voice and goes back to the default. |
 | `/voices [search] [mine]` | Searches Fish Audio voices and shows their IDs. `mine:true` shows only voices you created. |
 | `/dossier [user] [tracking]` | Shows what the bot has learned about someone (see [Learning](#learning)). `tracking:false` deletes what it has on you and stops tracking you; `tracking:true` starts again. |
-| `/leave` | Makes the bot leave the voice channel. It also leaves on its own after 15 minutes of silence. |
+| `/leave` | Makes the bot leave the voice channel. It comes back the next time it has something to say. It also leaves on its own once everyone else has left (or, with `STAY_IN_VOICE=false`, after 15 minutes without speaking). |
 
 Each user can run `/ask` or `/say` once every 10 seconds, so nobody burns through your API credits. Change it with `COOLDOWN_SECONDS` in `.env` (`0` turns it off).
 
