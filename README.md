@@ -29,6 +29,10 @@ Half the time, if someone's Discord status shows a game, a Spotify song or a str
 
 The bot goes to whoever joined: it joins their channel, or moves over from another channel once anything it's saying there has finished. Each person is greeted at most once every 10 minutes. Change that with `GREET_COOLDOWN_MINUTES`, change the voice with `GREET_VOICE` (a name, fish.audio link or ID), or turn greetings off with `GREETINGS=false`.
 
+### Leave roasts
+
+When someone disconnects from voice, there's a 50% chance the bot roasts them to whoever's still in the channel ("rage quitting already?"), using the same friend bits and activity as greetings. It only happens if someone's left to hear it, moving to another channel doesn't count (they get greeted there instead), and each person is roasted at most once per `GREET_COOLDOWN_MINUTES`. Change the odds with `LEAVE_ROAST_CHANCE` (a percent, `0` turns it off).
+
 ## Emotions
 
 Answers are performed with Fish Audio emotion cues: the AI adds a few tags like `[excited]`, `[sarcastic]`, `[laughing]`, `[whispering]` or `[shouting]`, and the voice acts them out. The tags are removed from any text shown in chat. You can use them yourself in `/say`, e.g. `/say text: [whispering] I have a secret. [laughing] Ha ha!`. Set `FISH_AUDIO_EMOTIONS=false` in `.env` for plain delivery. See [Fish Audio's emotion guide](https://docs.fish.audio/developer-guide/core-features/emotions) for the full list.
