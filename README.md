@@ -27,6 +27,8 @@ Some friends get a greeting tailored to them: `friendBits` in `src/greetings.js`
 
 Half the time, if someone's Discord status shows a game, a Spotify song or a stream, the greeting roasts that instead (e.g. what they're listening to). Change the odds with `GREET_ACTIVITY_CHANCE` (a percent, `0` turns it off). This needs **Presence Intent** turned on in the Discord Developer Portal (your app → Bot → Privileged Gateway Intents), otherwise the bot can't log in.
 
+If other people are already in the channel, half the time the greeting plays the newcomer off one of them, using both people's bits ("Ray's here, now the K-pop debate with jig can begin"). Change the odds with `GREET_GROUP_CHANCE` (a percent, `0` turns it off).
+
 The bot goes to whoever joined: it joins their channel, or moves over from another channel once anything it's saying there has finished. Each person is greeted at most once every 10 minutes. Change that with `GREET_COOLDOWN_MINUTES`, change the voice with `GREET_VOICE` (a name, fish.audio link or ID), or turn greetings off with `GREETINGS=false`.
 
 ### Leave roasts

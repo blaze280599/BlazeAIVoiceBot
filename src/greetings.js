@@ -42,6 +42,25 @@ function roastMaterial(member) {
   return bit ? `They ${bit}; work that into the dig. ` : '';
 }
 
+/** People (not bots) in the channel, who'd hear the bot. */
+function listeners(channel) {
+  return channel.members.filter((m) => !m.user.bot);
+}
+
+/** Sometimes tells the AI who else is in the channel (and their bits), so it can play the newcomer off them. */
+function groupMaterial(channel, member) {
+  if (Math.random() * 100 >= config.greetGroupChance) return '';
+  const others = [...listeners(channel).values()].filter((m) => m.id !== member.id).slice(0, 5);
+  if (!others.length) return '';
+  const who = others
+    .map((m) => {
+      const bit = friendBits[m.user.username.toLowerCase()];
+      return bit ? `${nameFor(m)}, who ${bit}` : nameFor(m);
+    })
+    .join('; ');
+  return `Already in the channel: ${who}. Play the newcomer off one of them by name, like the two are about to clash or team up. `;
+}
+
 /** Writes a line with the AI and says it in the greeting voice, unless shouldPlay() says it's no longer wanted. */
 async function speakInChannel(channel, prompt, shouldPlay) {
   const voice = await resolveVoice(config.greetVoice);
@@ -68,7 +87,8 @@ export async function greetOnJoin(oldState, newState) {
     await speakInChannel(
       channel,
       `"${nameFor(member)}" just joined the voice channel. Greet them by that name with a sarcastic, backhanded welcome, in character. ` +
-        roastMaterial(member),
+        roastMaterial(member) +
+        groupMaterial(channel, member),
       // They may have left while the greeting was being made.
       () => member.voice.channelId === channel.id,
     );
@@ -76,11 +96,6 @@ export async function greetOnJoin(oldState, newState) {
     console.error(`[greet] Couldn't greet ${member.user.tag}:`, err.message);
     warnInTerminal(err);
   }
-}
-
-/** People (not bots) still in the channel, who'd hear a roast. */
-function listeners(channel) {
-  return channel.members.filter((m) => !m.user.bot);
 }
 
 /** Handles Events.VoiceStateUpdate: sometimes roasts a member who disconnected, to whoever's still in the channel. */
