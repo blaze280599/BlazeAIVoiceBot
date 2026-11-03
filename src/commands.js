@@ -45,5 +45,13 @@ export const commands = [
     .addStringOption((o) => o.setName('search').setDescription('Name to search for, e.g. "trump" (blank = most popular)'))
     .addBooleanOption((o) => o.setName('mine').setDescription('Only show voices you created on Fish Audio')),
 
+  new SlashCommandBuilder()
+    .setName('dossier')
+    .setDescription("See what the bot has learned about someone's games, music and voice habits")
+    .addUserOption((o) => o.setName('user').setDescription('Whose dossier (default: yours)'))
+    .addBooleanOption((o) =>
+      o.setName('tracking').setDescription('False: delete what the bot has on you and stop tracking you. True: start again'),
+    ),
+
   new SlashCommandBuilder().setName('leave').setDescription('Make the bot leave the voice channel'),
 ].map((c) => c.toJSON());

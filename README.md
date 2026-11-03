@@ -11,6 +11,7 @@ A Discord bot that answers questions with DeepSeek V4.1 Flash (via OpenRouter) a
 | `/voices use:<name or link>` | Sets your own voice. `/ask` and `/say` use it from then on, until you change it. |
 | `/voices reset:true` | Clears your voice and goes back to the default. |
 | `/voices [search] [mine]` | Searches Fish Audio voices and shows their IDs. `mine:true` shows only voices you created. |
+| `/dossier [user] [tracking]` | Shows what the bot has learned about someone (see [Learning](#learning)). `tracking:false` deletes what it has on you and stops tracking you; `tracking:true` starts again. |
 | `/leave` | Makes the bot leave the voice channel. It also leaves on its own after 15 minutes of silence. |
 
 Each user can run `/ask` or `/say` once every 10 seconds, so nobody burns through your API credits. Change it with `COOLDOWN_SECONDS` in `.env` (`0` turns it off).
@@ -42,6 +43,23 @@ When someone in voice deafens, mutes, starts screen sharing or turns their camer
 ### Running gags
 
 The bot counts how many times each person joins and leaves voice each day. From someone's second join (or second leave) onward, the greeting or roast works the tally in ("that's your fourth rejoin, is your Wi-Fi powered by a hamster?"). Joins and leaves are counted even when the greeting is skipped for the cooldown, but moving between channels doesn't count as a join. The tally resets at midnight (the bot machine's time) and when the bot restarts.
+
+## Learning
+
+The bot watches everyone's Discord status and builds up a profile of each person over time: hours played per game, Spotify plays per song and artist, and what time of day they join voice. It only uses what anyone in the server can already see in their status, never messages or voice audio. Profiles are kept in `data/profiles.json`.
+
+Half the time, a greeting, leave roast or voice reaction picks a couple of standout facts from the profile and works one in. For example:
+
+- they've sunk 42 hours into Arena Breakout Infinite in the last 12 days
+- they've been playing it for 5 hours straight
+- they just started playing a new game (once the bot has known them for a week)
+- they keep launching a game and quitting within minutes
+- they've listened to "Espresso" by Sabrina Carpenter 14 times
+- they usually hop on voice after midnight
+
+`/dossier` shows the whole profile, so friends can see what the bot has on them. `/dossier tracking:false` deletes your profile and stops tracking you.
+
+Change the odds with `LEARNED_ROAST_CHANCE` (a percent, `0` never brings it up), or turn learning off with `LEARNING=false`. Learning needs Presence Intent (see [Join greetings](#join-greetings)).
 
 ## Emotions
 

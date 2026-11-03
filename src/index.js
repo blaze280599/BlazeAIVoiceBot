@@ -7,13 +7,15 @@ import { clearUserVoice, getUserVoice, setUserVoice } from './userVoices.js';
 import { ServiceError, warnInTerminal } from './errors.js';
 import { leaveChannel, playInChannel } from './voice.js';
 import { greetOnJoin, reactToVoiceChange, roastOnLeave } from './greetings.js';
+import { dossier, setTracking, trackEveryone, trackPresence } from './profiles.js';
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
-    // Lets greetings see what people are playing or listening to. Needs Presence Intent on in the Developer Portal.
-    ...((config.greetings || config.leaveRoastChance > 0 || config.voiceReactChance > 0) && config.greetActivityChance > 0
+    // Lets greetings and learning see what people are playing or listening to. Needs Presence Intent on in the Developer Portal.
+    ...(config.learning ||
+    ((config.greetings || config.leaveRoastChance > 0 || config.voiceReactChance > 0) && config.greetActivityChance > 0)
       ? [GatewayIntentBits.GuildPresences]
       : []),
   ],
@@ -21,11 +23,15 @@ const client = new Client({
   allowedMentions: { parse: [] },
 });
 
-client.once(Events.ClientReady, (c) => console.log(`Logged in as ${c.user.tag}`));
+client.once(Events.ClientReady, (c) => {
+  console.log(`Logged in as ${c.user.tag}`);
+  if (config.learning) trackEveryone(c);
+});
 
 client.on(Events.VoiceStateUpdate, greetOnJoin);
 client.on(Events.VoiceStateUpdate, roastOnLeave);
 client.on(Events.VoiceStateUpdate, reactToVoiceChange);
+if (config.learning) client.on(Events.PresenceUpdate, trackPresence);
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
@@ -39,6 +45,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return await handleSpeak(interaction, { useAI: false });
       case 'voices':
         return await handleVoices(interaction);
+      case 'dossier':
+        return await handleDossier(interaction);
       case 'leave': {
         const left = interaction.guildId && leaveChannel(interaction.guildId);
         return await interaction.reply({
@@ -214,6 +222,29 @@ async function handleVoices(interaction) {
     content += `${line}\n`;
   }
   await interaction.editReply(content);
+}
+
+async function handleDossier(interaction) {
+  if (!config.learning) {
+    return interaction.reply({ content: 'Learning is turned off (`LEARNING=false`).', flags: MessageFlags.Ephemeral });
+  }
+
+  const tracking = interaction.options.getBoolean('tracking');
+  if (tracking !== null) {
+    await setTracking(interaction.user.id, tracking);
+    return interaction.reply({
+      content: tracking
+        ? "Tracking's back on. I'll start learning about you again."
+        : 'Done. I deleted everything I had on you and stopped tracking you. `/dossier tracking:True` turns it back on.',
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+
+  const user = interaction.options.getUser('user') ?? interaction.user;
+  const body = await dossier(user.id);
+  await interaction.reply(
+    body ? `**Dossier on ${user.displayName}**\n${body}`.slice(0, 2000) : `I haven't learned anything about ${user.displayName} yet.`,
+  );
 }
 
 client.login(config.discordToken);

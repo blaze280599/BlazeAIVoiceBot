@@ -4,6 +4,7 @@ import { resolveVoice, textToSpeech } from './fishaudio.js';
 import { describeActivity, speakableName } from './text.js';
 import { warnInTerminal } from './errors.js';
 import { playInChannel } from './voice.js';
+import { learnedFacts, recordJoin } from './profiles.js';
 
 // When each member was last greeted or roasted on the way out, so hopping in and out (or a flaky connection) doesn't spam.
 const lastGreeted = new Map();
@@ -18,6 +19,7 @@ const friendBits = {
   stickygravy: 'is still hooked on Arena Breakout Infinite and eats leftover rice every single day',
   pparkerr: 'loves Teslas, makes constant impulse purchases, and is a huge Sabrina Carpenter fan',
   jig4352: "is a proper Brexit geezer: Union Jack, pints down the pub, moaning about Brussels. Mock the Brexit bloke act, but don't make racist jokes",
+  zack280599: 'built this very bot, spends their free time coding AI to roast their friends instead of touching grass, and is now getting roasted by their own creation',
 };
 
 /** What to call the member out loud: server nickname, then display name, then username. */
@@ -61,12 +63,22 @@ function countsMaterial({ joins, leaves }, event) {
   );
 }
 
-/** Roast material for the prompt: sometimes what they're doing right now, otherwise their friend bit. */
-function roastMaterial(member) {
+/**
+ * Roast material for the prompt: sometimes what they're doing right now, otherwise their friend bit
+ * and sometimes a couple of things the bot has learned about them.
+ */
+async function roastMaterial(member) {
   const activity = Math.random() * 100 < config.greetActivityChance ? describeActivity(member.presence?.activities) : null;
   if (activity) return `They're ${activity} right now; make fun of that. `;
+  const things = [];
   const bit = friendBits[member.user.username.toLowerCase()];
-  return bit ? `They ${bit}; work that into the dig. ` : '';
+  if (bit) things.push(`${nameFor(member)} ${bit}`);
+  if (config.learning && Math.random() * 100 < config.learnedRoastChance) {
+    // Two at random, so the same stat doesn't come up every time.
+    const facts = await learnedFacts(member.id).catch(() => []);
+    things.push(...facts.sort(() => Math.random() - 0.5).slice(0, 2));
+  }
+  return things.length ? `About them: ${things.join('; ')}. Work one of those into the dig. ` : '';
 }
 
 /** People (not bots) in the channel, who'd hear the bot. */
@@ -123,7 +135,10 @@ export async function greetOnJoin(oldState, newState) {
   // Counted even when the greeting is skipped (cooldown, greetings off), so the tally stays accurate.
   // Moving between channels isn't a fresh join.
   const counts = todaysCounts(member);
-  if (!oldState.channelId) counts.joins++;
+  if (!oldState.channelId) {
+    counts.joins++;
+    if (config.learning) recordJoin(member.user);
+  }
   if (!config.greetings) return;
   if (channel.id === channel.guild.afkChannelId || !channel.joinable) return;
   if (onCooldown(member, lastGreeted)) return;
@@ -132,7 +147,7 @@ export async function greetOnJoin(oldState, newState) {
     await speakInChannel(
       channel,
       `"${nameFor(member)}" just joined the voice channel. Greet them by that name with a sarcastic, backhanded welcome, in character. ` +
-        roastMaterial(member) +
+        (await roastMaterial(member)) +
         groupMaterial(channel, member) +
         countsMaterial(counts, 'join'),
       // They may have left while the greeting was being made.
@@ -161,7 +176,7 @@ export async function roastOnLeave(oldState, newState) {
       channel,
       `"${nameFor(member)}" just left the voice channel. Roast them by name to the people still there, in character, ` +
         'like they rage quit or bailed on everyone. ' +
-        roastMaterial(member) +
+        (await roastMaterial(member)) +
         countsMaterial(counts, 'leave'),
       // Nobody left to hear it.
       () => listeners(channel).size > 0,
@@ -192,7 +207,7 @@ export async function reactToVoiceChange(oldState, newState) {
     await speakInChannel(
       channel,
       `"${nameFor(member)}" ${change.what}, by name, in character. ` +
-        (activity ? `They're ${activity}, so that's what everyone's watching. ` : roastMaterial(member)),
+        (activity ? `They're ${activity}, so that's what everyone's watching. ` : await roastMaterial(member)),
       // They may have left, or everyone else deafened, while the line was being made.
       () => member.voice.channelId === channel.id && hearers(channel).size > 0,
     );

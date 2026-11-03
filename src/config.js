@@ -41,4 +41,10 @@ export const config = {
   voiceReactChance: Math.min(100, Math.max(0, Number(process.env.VOICE_REACT_CHANCE?.trim() || 50) || 0)),
   // Percent chance a greeting roasts what they're playing or listening to (from their Discord status). 0 turns it off.
   greetActivityChance: Math.min(100, Math.max(0, Number(process.env.GREET_ACTIVITY_CHANCE?.trim() || 50) || 0)),
+
+  // Learn what people play and listen to (from their Discord status) and when they hop on, for roasts and /dossier.
+  // Set LEARNING=false to turn it off.
+  learning: process.env.LEARNING?.trim().toLowerCase() !== 'false',
+  // Percent chance a greeting or roast brings up something the bot has learned. 0 never does.
+  learnedRoastChance: Math.min(100, Math.max(0, Number(process.env.LEARNED_ROAST_CHANCE?.trim() || 50) || 0)),
 };
