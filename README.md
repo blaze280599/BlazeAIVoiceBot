@@ -25,6 +25,8 @@ When someone joins a voice channel, the bot greets them out loud by name in Trum
 
 Some friends get a greeting tailored to them: `friendBits` in `src/greetings.js` maps a Discord username to what they're into, and the line ribs them about it. Add or edit entries there.
 
+Half the time, if someone's Discord status shows a game, a Spotify song or a stream, the greeting roasts that instead (e.g. what they're listening to). Change the odds with `GREET_ACTIVITY_CHANCE` (a percent, `0` turns it off). This needs **Presence Intent** turned on in the Discord Developer Portal (your app → Bot → Privileged Gateway Intents), otherwise the bot can't log in.
+
 The bot goes to whoever joined: it joins their channel, or moves over from another channel once anything it's saying there has finished. Each person is greeted at most once every 10 minutes. Change that with `GREET_COOLDOWN_MINUTES`, change the voice with `GREET_VOICE` (a name, fish.audio link or ID), or turn greetings off with `GREETINGS=false`.
 
 ## Emotions

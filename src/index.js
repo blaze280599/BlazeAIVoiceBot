@@ -9,7 +9,12 @@ import { leaveChannel, playInChannel } from './voice.js';
 import { greetOnJoin } from './greetings.js';
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildVoiceStates,
+    // Lets greetings see what people are playing or listening to. Needs Presence Intent on in the Developer Portal.
+    ...(config.greetings && config.greetActivityChance > 0 ? [GatewayIntentBits.GuildPresences] : []),
+  ],
   // User text and AI answers are echoed into chat, so never let them ping @everyone, roles or users.
   allowedMentions: { parse: [] },
 });

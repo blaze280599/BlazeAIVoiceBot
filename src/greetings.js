@@ -1,7 +1,7 @@
 import { config } from './config.js';
 import { askAI } from './llm.js';
 import { resolveVoice, textToSpeech } from './fishaudio.js';
-import { speakableName } from './text.js';
+import { describeActivity, speakableName } from './text.js';
 import { warnInTerminal } from './errors.js';
 import { playInChannel } from './voice.js';
 
@@ -43,13 +43,19 @@ export async function greetOnJoin(oldState, newState) {
   if (onCooldown(member)) return;
 
   const name = nameFor(member);
+  // Sometimes roast what they're doing right now instead of the usual friend bit.
+  const activity = Math.random() * 100 < config.greetActivityChance ? describeActivity(member.presence?.activities) : null;
   const bit = friendBits[member.user.username.toLowerCase()];
   try {
     const voice = await resolveVoice(config.greetVoice);
     if (!voice) return console.error(`[greet] No Fish Audio voice found for GREET_VOICE="${config.greetVoice}"`);
     const greeting = await askAI(
       `"${name}" just joined the voice channel. Greet them by that name with a sarcastic, backhanded welcome, in character. ` +
-        (bit ? `They ${bit}; work that into the dig. ` : '') +
+        (activity
+          ? `They're ${activity} right now; make fun of that. `
+          : bit
+            ? `They ${bit}; work that into the dig. `
+            : '') +
         'One short sentence, under 20 words. Playful ribbing between friends, not genuinely mean.',
       { voiceName: voice.name },
     );

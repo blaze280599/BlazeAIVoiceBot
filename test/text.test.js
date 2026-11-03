@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { characterName, extractVoiceId, speakableName, stripAsteriskActions, stripCues, toParenCues } from '../src/text.js';
+import { characterName, describeActivity, extractVoiceId, speakableName, stripAsteriskActions, stripCues, toParenCues } from '../src/text.js';
 
 const ID = '0123456789abcdef0123456789abcdef';
 
@@ -40,4 +40,16 @@ test('speakableName cleans display names for TTS', () => {
   assert.equal(speakableName('[$(100)$]'), null); // No letters: the caller falls back to the username.
   assert.equal(speakableName('Ƶack'), 'Ƶack');
   assert.equal(speakableName(null), null);
+});
+
+test('describeActivity says what a member is playing or listening to', () => {
+  assert.equal(describeActivity([{ type: 0, name: 'Phantom Blade Zero' }]), 'playing "Phantom Blade Zero"');
+  assert.equal(
+    describeActivity([{ type: 2, name: 'Spotify', details: 'Espresso', state: 'Sabrina Carpenter; Someone Else' }]),
+    'listening to "Espresso" by Sabrina Carpenter, Someone Else on Spotify',
+  );
+  assert.equal(describeActivity([{ type: 4, name: 'Custom Status', state: '😴' }, { type: 0, name: 'MapleStory' }]), 'playing "MapleStory"');
+  assert.equal(describeActivity([{ type: 4, name: 'Custom Status' }]), null);
+  assert.equal(describeActivity([]), null);
+  assert.equal(describeActivity(undefined), null);
 });

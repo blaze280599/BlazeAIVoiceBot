@@ -33,4 +33,6 @@ export const config = {
   greetVoice: process.env.GREET_VOICE?.trim() || 'Donald Trump',
   // Minutes before the same person gets greeted again, so rejoining doesn't spam (or burn credits).
   greetCooldownMinutes: Math.max(0, Number(process.env.GREET_COOLDOWN_MINUTES?.trim() || 10) || 0),
+  // Percent chance a greeting roasts what they're playing or listening to (from their Discord status). 0 turns it off.
+  greetActivityChance: Math.min(100, Math.max(0, Number(process.env.GREET_ACTIVITY_CHANCE?.trim() || 50) || 0)),
 };
