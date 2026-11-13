@@ -16,7 +16,6 @@ const dailyCounts = new Map();
 // What the bot knows about each friend (keyed by Discord username), so their greeting can rib them about it.
 const friendBits = {
   gamebredray: 'is obsessed with K-pop and anything from Asia: idols, anime, boba, K-dramas',
-  stickygravy: 'is still hooked on Arena Breakout Infinite and eats leftover rice every single day',
   pparkerr: 'loves Teslas, makes constant impulse purchases, and is a huge Sabrina Carpenter fan',
   jig4352: "is a proper Brexit geezer: Union Jack, pints down the pub, moaning about Brussels. Mock the Brexit bloke act, but don't make racist jokes",
   zack280599:
@@ -110,7 +109,6 @@ function hearers(channel) {
 // Voice toggles worth a reaction, checked in order: deafening also mutes, so it has to come before mute.
 const voiceChanges = [
   { on: (s) => s.selfDeaf, what: "just deafened themselves, so they can't hear a thing. Roast them to everyone else for tuning the group out" },
-  { on: (s) => s.streaming, what: 'just started screen sharing to the channel. Mock everyone now being forced to watch', showsActivity: true },
   { on: (s) => s.selfVideo, what: 'just turned their camera on. Rib them about everyone now having to look at them' },
   { on: (s) => s.selfMute, what: 'just muted their mic. Roast them for going quiet, like they have something to hide' },
 ];
@@ -189,7 +187,7 @@ export async function roastOnLeave(oldState, newState) {
   }
 }
 
-/** Handles Events.VoiceStateUpdate: sometimes reacts when someone deafens, mutes, goes live or turns their camera on. */
+/** Handles Events.VoiceStateUpdate: sometimes reacts when someone deafens, mutes or turns their camera on. */
 export async function reactToVoiceChange(oldState, newState) {
   const channel = newState.channel;
   const member = newState.member;
@@ -203,13 +201,10 @@ export async function reactToVoiceChange(oldState, newState) {
   if (Math.random() * 100 >= config.voiceReactChance) return;
   if (onCooldown(member, lastReacted)) return;
 
-  // Going live is funnier when the bot knows what they're showing.
-  const activity = change.showsActivity && describeActivity(member.presence?.activities);
   try {
     await speakInChannel(
       channel,
-      `"${nameFor(member)}" ${change.what}, by name, in character. ` +
-        (activity ? `They're ${activity}, so that's what everyone's watching. ` : await roastMaterial(member)),
+      `"${nameFor(member)}" ${change.what}, by name, in character. ` + (await roastMaterial(member)),
       // They may have left, or everyone else deafened, while the line was being made.
       () => member.voice.channelId === channel.id && hearers(channel).size > 0,
     );

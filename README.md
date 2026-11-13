@@ -38,7 +38,7 @@ When someone disconnects from voice, there's a 50% chance the bot roasts them to
 
 ### Voice reactions
 
-When someone in voice deafens, mutes, starts screen sharing or turns their camera on, there's a 50% chance the bot reacts ("deafened? can't handle the truth?"). Screen sharing roasts the game they're playing, if their status shows one. Only switching something on counts, not switching it off, and nothing is said if nobody in the channel can hear it. Each person gets at most one reaction per `GREET_COOLDOWN_MINUTES`, and none in the minute after they're greeted, since people often mute or turn on their camera right after joining. Change the odds with `VOICE_REACT_CHANCE` (a percent, `0` turns it off).
+When someone in voice deafens, mutes or turns their camera on, there's a 50% chance the bot reacts ("deafened? can't handle the truth?"). Only switching something on counts, not switching it off, and nothing is said if nobody in the channel can hear it. Each person gets at most one reaction per `GREET_COOLDOWN_MINUTES`, and none in the minute after they're greeted, since people often mute or turn on their camera right after joining. Change the odds with `VOICE_REACT_CHANCE` (a percent, `0` turns it off).
 
 ### Running gags
 
