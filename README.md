@@ -32,23 +32,15 @@ If other people are already in the channel, half the time the greeting plays the
 
 The bot goes to whoever joined: it joins their channel, or moves over from another channel once anything it's saying there has finished. Each person is greeted at most once every 10 minutes. Change that with `GREET_COOLDOWN_MINUTES`, change the voice with `GREET_VOICE` (a name, fish.audio link or ID), or turn greetings off with `GREETINGS=false`.
 
-### Leave roasts
-
-When someone disconnects from voice, there's a 50% chance the bot roasts them to whoever's still in the channel ("rage quitting already?"), using the same friend bits and activity as greetings. It only happens if someone's left to hear it, moving to another channel doesn't count (they get greeted there instead), and each person is roasted at most once per `GREET_COOLDOWN_MINUTES`. Change the odds with `LEAVE_ROAST_CHANCE` (a percent, `0` turns it off).
-
 ### Voice reactions
 
-When someone in voice deafens, mutes or turns their camera on, there's a 50% chance the bot reacts ("deafened? can't handle the truth?"). Only switching something on counts, not switching it off, and nothing is said if nobody in the channel can hear it. Each person gets at most one reaction per `GREET_COOLDOWN_MINUTES`, and none in the minute after they're greeted, since people often mute or turn on their camera right after joining. Change the odds with `VOICE_REACT_CHANCE` (a percent, `0` turns it off).
-
-### Running gags
-
-The bot counts how many times each person joins and leaves voice each day. From someone's second join (or second leave) onward, the greeting or roast works the tally in ("that's your fourth rejoin, is your Wi-Fi powered by a hamster?"). Joins and leaves are counted even when the greeting is skipped for the cooldown, but moving between channels doesn't count as a join. The tally resets at midnight (the bot machine's time) and when the bot restarts.
+When someone in voice mutes or turns their camera on, there's a 50% chance the bot reacts. Only switching something on counts, not switching it off, and nothing is said if nobody in the channel can hear it. Each person gets at most one reaction per `GREET_COOLDOWN_MINUTES`, and none in the minute after they're greeted, since people often mute or turn on their camera right after joining. Change the odds with `VOICE_REACT_CHANCE` (a percent, `0` turns it off).
 
 ## Learning
 
 The bot watches everyone's Discord status and builds up a profile of each person over time: hours played per game, Spotify plays per song and artist, and what time of day they join voice. It only uses what anyone in the server can already see in their status, never messages or voice audio. Profiles are kept in `data/profiles.json`.
 
-Half the time, a greeting, leave roast or voice reaction picks a couple of standout facts from the profile and works one in. For example:
+Half the time, a greeting or voice reaction picks a couple of standout facts from the profile and works one in. For example:
 
 - they've sunk 42 hours into Arena Breakout Infinite in the last 12 days
 - they've been playing it for 5 hours straight

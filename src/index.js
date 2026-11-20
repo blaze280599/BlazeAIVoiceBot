@@ -6,7 +6,7 @@ import { extractVoiceId, stripCues } from './text.js';
 import { clearUserVoice, getUserVoice, setUserVoice } from './userVoices.js';
 import { ServiceError, warnInTerminal } from './errors.js';
 import { leaveChannel, leaveWhenEmpty, playInChannel } from './voice.js';
-import { greetOnJoin, reactToVoiceChange, roastOnLeave } from './greetings.js';
+import { greetOnJoin, reactToVoiceChange } from './greetings.js';
 import { dossier, setTracking, trackEveryone, trackPresence } from './profiles.js';
 
 const client = new Client({
@@ -15,7 +15,7 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates,
     // Lets greetings and learning see what people are playing or listening to. Needs Presence Intent on in the Developer Portal.
     ...(config.learning ||
-    ((config.greetings || config.leaveRoastChance > 0 || config.voiceReactChance > 0) && config.greetActivityChance > 0)
+    ((config.greetings || config.voiceReactChance > 0) && config.greetActivityChance > 0)
       ? [GatewayIntentBits.GuildPresences]
       : []),
   ],
@@ -29,7 +29,6 @@ client.once(Events.ClientReady, (c) => {
 });
 
 client.on(Events.VoiceStateUpdate, greetOnJoin);
-client.on(Events.VoiceStateUpdate, roastOnLeave);
 client.on(Events.VoiceStateUpdate, reactToVoiceChange);
 client.on(Events.VoiceStateUpdate, leaveWhenEmpty);
 if (config.learning) client.on(Events.PresenceUpdate, trackPresence);

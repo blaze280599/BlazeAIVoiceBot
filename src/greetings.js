@@ -6,12 +6,8 @@ import { warnInTerminal } from './errors.js';
 import { playInChannel } from './voice.js';
 import { learnedFacts, recordJoin } from './profiles.js';
 
-// When each member was last greeted or roasted on the way out, so hopping in and out (or a flaky connection) doesn't spam.
 const lastGreeted = new Map();
-const lastRoasted = new Map();
 const lastReacted = new Map();
-// How many times each member joined and left voice today, so the bot can make a running gag of people who keep popping in and out.
-const dailyCounts = new Map();
 
 // What the bot knows about each friend (keyed by Discord username), so their greeting can rib them about it.
 const friendBits = {
@@ -36,30 +32,6 @@ function onCooldown(member, lastAt) {
     for (const [k, at] of lastAt) if (now - at >= cooldownMs) lastAt.delete(k);
   }
   return false;
-}
-
-/** The member's { joins, leaves } for today (the bot's local date), starting from zero each day. */
-function todaysCounts(member) {
-  const key = `${member.guild.id}:${member.id}`;
-  const today = new Date().toDateString();
-  let counts = dailyCounts.get(key);
-  if (counts?.day !== today) {
-    counts = { day: today, joins: 0, leaves: 0 };
-    dailyCounts.set(key, counts);
-    if (dailyCounts.size > 1000) {
-      for (const [k, c] of dailyCounts) if (c.day !== today) dailyCounts.delete(k);
-    }
-  }
-  return counts;
-}
-
-/** Once someone has joined or left more than once today, tells the AI the tally so it can turn it into a running gag. */
-function countsMaterial({ joins, leaves }, event) {
-  if ((event === 'join' ? joins : leaves) < 2) return '';
-  return (
-    `Today they've joined voice ${joins} ${joins === 1 ? 'time' : 'times'} and left ${leaves} ${leaves === 1 ? 'time' : 'times'}. ` +
-    `Make a running gag of how often they keep ${event === 'join' ? 'coming back' : 'bailing'}, using the number. `
-  );
 }
 
 /**
@@ -104,9 +76,7 @@ function hearers(channel) {
   return listeners(channel).filter((m) => !m.voice.deaf);
 }
 
-// Voice toggles worth a reaction, checked in order: deafening also mutes, so it has to come before mute.
 const voiceChanges = [
-  { on: (s) => s.selfDeaf, what: "just deafened themselves, so they can't hear a thing. Roast them to everyone else for tuning the group out" },
   { on: (s) => s.selfVideo, what: 'just turned their camera on. Rib them about everyone now having to look at them' },
   { on: (s) => s.selfMute, what: 'just muted their mic. Roast them for going quiet, like they have something to hide' },
 ];
@@ -130,13 +100,7 @@ export async function greetOnJoin(oldState, newState) {
   const member = newState.member;
   if (!channel || !member || member.user.bot) return;
   if (oldState.channelId === newState.channelId) return; // Mute, deafen, stream etc., not a join.
-  // Counted even when the greeting is skipped (cooldown, greetings off), so the tally stays accurate.
-  // Moving between channels isn't a fresh join.
-  const counts = todaysCounts(member);
-  if (!oldState.channelId) {
-    counts.joins++;
-    if (config.learning) recordJoin(member.user);
-  }
+  if (!oldState.channelId && config.learning) recordJoin(member.user);
   if (!config.greetings) return;
   if (channel.id === channel.guild.afkChannelId || !channel.joinable) return;
   if (onCooldown(member, lastGreeted)) return;
@@ -146,8 +110,7 @@ export async function greetOnJoin(oldState, newState) {
       channel,
       `"${nameFor(member)}" just joined the voice channel. Greet them by that name with a sarcastic, backhanded welcome, in character. ` +
         (await roastMaterial(member)) +
-        groupMaterial(channel, member) +
-        countsMaterial(counts, 'join'),
+        groupMaterial(channel, member),
       // They may have left while the greeting was being made.
       () => member.voice.channelId === channel.id,
     );
@@ -157,40 +120,14 @@ export async function greetOnJoin(oldState, newState) {
   }
 }
 
-/** Handles Events.VoiceStateUpdate: sometimes roasts a member who disconnected, to whoever's still in the channel. */
-export async function roastOnLeave(oldState, newState) {
-  const channel = oldState.channel;
-  const member = oldState.member;
-  // Only full disconnects: moving to another channel gets a greeting over there instead.
-  if (!channel || newState.channelId || !member || member.user.bot) return;
-  const counts = todaysCounts(member);
-  counts.leaves++;
-  if (channel.id === channel.guild.afkChannelId || !channel.joinable || !listeners(channel).size) return;
-  if (Math.random() * 100 >= config.leaveRoastChance) return;
-  if (onCooldown(member, lastRoasted)) return;
-
-  try {
-    await speakInChannel(
-      channel,
-      `"${nameFor(member)}" just left the voice channel. Roast them by name to the people still there, in character, ` +
-        'like they rage quit or bailed on everyone. ' +
-        (await roastMaterial(member)) +
-        countsMaterial(counts, 'leave'),
-      // Nobody left to hear it.
-      () => listeners(channel).size > 0,
-    );
-  } catch (err) {
-    console.error(`[greet] Couldn't roast ${member.user.tag} for leaving:`, err.message);
-    warnInTerminal(err);
-  }
-}
-
-/** Handles Events.VoiceStateUpdate: sometimes reacts when someone deafens, mutes or turns their camera on. */
+/** Handles Events.VoiceStateUpdate: sometimes reacts when someone mutes or turns their camera on. */
 export async function reactToVoiceChange(oldState, newState) {
   const channel = newState.channel;
   const member = newState.member;
-  // Only changes within a channel: joins and leaves are handled above.
+  // Only react to toggles within the same channel.
   if (!channel || oldState.channelId !== newState.channelId || !member || member.user.bot) return;
+  // Discord can switch self-mute on in the same update as self-deafen.
+  if (newState.selfDeaf && !oldState.selfDeaf) return;
   const change = voiceChanges.find((c) => !c.on(oldState) && c.on(newState));
   if (!change) return;
   if (channel.id === channel.guild.afkChannelId || !channel.joinable || !hearers(channel).size) return;
